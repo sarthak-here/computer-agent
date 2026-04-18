@@ -40,7 +40,7 @@ def is_dangerous(action_desc: str) -> bool:
     return any(kw in action_desc.lower() for kw in SAFE_GUARD_KEYWORDS)
 
 
-def execute_action(action: dict, auto_approve: bool = False) -> bool:
+def execute_action(action: dict, auto_approve: bool = False, logger=None) -> bool:
     atype = action.get("type", "")
     desc = action.get("reasoning", "")
 
@@ -49,14 +49,20 @@ def execute_action(action: dict, auto_approve: bool = False) -> bool:
         confirm = input("Allow? [y/N]: ").strip().lower()
         if confirm != "y":
             print("Action blocked.")
+            if logger:
+                logger.blocked(action, "dangerous action denied by user")
             return False
 
     if not auto_approve:
         print(f"\n🤖 Proposed action: {action}")
         confirm = input("Execute? [Y/n/s(skip)]: ").strip().lower()
         if confirm == "n":
+            if logger:
+                logger.blocked(action, "user denied")
             return False
         if confirm == "s":
+            if logger:
+                logger.blocked(action, "user skipped")
             return True
 
     if atype == "click":

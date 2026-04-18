@@ -2,6 +2,7 @@ import json
 import re
 
 from providers import call_provider
+from logger import Logger
 
 SYSTEM_PROMPT = """You are an AI agent controlling a Windows computer. You see the screen and decide the next single action to take toward the user's goal.
 
@@ -31,6 +32,7 @@ def get_next_action(
     step: int,
     provider: str = "anthropic",
     model: str | None = None,
+    logger: Logger | None = None,
 ) -> dict:
     history_text = ""
     if history:
@@ -41,6 +43,10 @@ def get_next_action(
 
     prompt = f"Step {step}. Goal: {goal}{history_text}\n\nWhat is the single next action to take? Respond with JSON only."
 
+    effective_model = model or ""
+    if logger:
+        logger.llm_call(provider, effective_model)
+
     raw = call_provider(
         provider=provider,
         system=SYSTEM_PROMPT,
@@ -48,6 +54,9 @@ def get_next_action(
         image_b64=screenshot_b64,
         model=model,
     )
+
+    if logger:
+        logger.llm_response(raw)
 
     json_match = re.search(r"\{.*\}", raw, re.DOTALL)
     if json_match:

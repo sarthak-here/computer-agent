@@ -135,6 +135,53 @@ python main.py --goal "open notepad" --provider llamacpp
 
 ---
 
+## Logging
+
+Every session is logged in real time to the `logs/` folder.
+
+```
+logs/
+  agent.log          ← master log, every session ever (append-only)
+  1713456789.log     ← per-session log (one file per run)
+```
+
+Each log records exactly what the agent did, step by step:
+
+```
+[2026-04-18 14:32:01] ============================================================
+[2026-04-18 14:32:01] SESSION START  2026-04-18 14:32:01
+[2026-04-18 14:32:01] Session ID : 1713456789
+[2026-04-18 14:32:01] Goal       : Open Notepad and type Hello World
+[2026-04-18 14:32:01] Provider   : anthropic  |  Model: claude-sonnet-4-6
+[2026-04-18 14:32:01] ============================================================
+[2026-04-18 14:32:03] CAPTURE    : step 1, screen size 1920x1080
+[2026-04-18 14:32:03] LLM CALL   : anthropic / claude-sonnet-4-6
+[2026-04-18 14:32:04] LLM RESP   : {"type": "hotkey", "keys": ["win", "r"], "reasoning": "Open Run dialog"}
+[2026-04-18 14:32:04] STEP 1
+[2026-04-18 14:32:04]   Action   : hotkey
+[2026-04-18 14:32:04]   Keys     : win + r
+[2026-04-18 14:32:04]   Reason   : Open Run dialog to launch Notepad
+[2026-04-18 14:32:06] CAPTURE    : step 2, screen size 1920x1080
+...
+[2026-04-18 14:32:18] SESSION END  |  status=completed  |  total_steps=4
+```
+
+Blocked/denied actions are also logged:
+```
+[2026-04-18 14:35:01]   BLOCKED  : user denied -> {"type": "click", ...}
+```
+
+To watch a session live as it runs:
+```bash
+# Windows (PowerShell)
+Get-Content logs\agent.log -Wait
+
+# Mac/Linux
+tail -f logs/agent.log
+```
+
+---
+
 ## Setup
 
 ```bash

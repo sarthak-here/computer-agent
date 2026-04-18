@@ -21,6 +21,7 @@ from planner import get_next_action
 from executor import execute_action
 from memory import Memory
 from providers import PROVIDERS, list_providers
+from logger import Logger
 
 
 def run_agent(
@@ -33,8 +34,10 @@ def run_agent(
     info = PROVIDERS[provider]
     effective_model = model or info["default_model"]
 
-    mem = Memory(session_file=f"session_{int(time.time())}.json")
+    session_id = str(int(time.time()))
+    mem = Memory(session_file=f"session_{session_id}.json")
     mem.goal = goal
+    log = Logger(session_id=session_id, goal=goal, provider=provider, model=effective_model)
 
     print(f"\n🎯 Goal: {goal}")
     print(f"🤖 Provider: {info['name']}  |  Model: {effective_model}")
@@ -51,11 +54,13 @@ def run_agent(
 
     time.sleep(2)
 
+    status = "completed"
     for step in range(1, max_steps + 1):
         print(f"\n[Step {step}/{max_steps}] Capturing screen...")
 
         img = capture_screen()
         b64 = image_to_base64(img)
+        log.screen_capture(step, img.size)
 
         print("🧠 Thinking...")
         try:
@@ -66,23 +71,29 @@ def run_agent(
                 step=step,
                 provider=provider,
                 model=model,
+                logger=log,
             )
         except Exception as e:
             print(f"❌ Planner error: {e}")
+            log.error(str(e))
+            status = "error"
             break
 
         print(f"💡 Decided: {action.get('type')} — {action.get('reasoning', '')}")
+        log.step(step, action)
 
         if action.get("type") == "done":
             print("\n✅ Agent says goal is complete!")
             break
 
-        should_continue = execute_action(action, auto_approve=auto_approve)
+        should_continue = execute_action(action, auto_approve=auto_approve, logger=log)
         mem.add(action)
 
         if not should_continue:
+            status = "stopped"
             break
 
+    log.session_end(steps=len(mem.history), status=status)
     mem.save()
     print(f"\n📊 Summary:\n{mem.summary()}")
 
