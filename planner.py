@@ -1,8 +1,7 @@
-import anthropic
 import json
 import re
 
-client = anthropic.Anthropic()
+from providers import call_provider
 
 SYSTEM_PROMPT = """You are an AI agent controlling a Windows computer. You see the screen and decide the next single action to take toward the user's goal.
 
@@ -25,33 +24,30 @@ Rules:
 - If unsure, use a conservative action or wait"""
 
 
-def get_next_action(goal: str, screenshot_b64: str, history: list[dict], step: int) -> dict:
+def get_next_action(
+    goal: str,
+    screenshot_b64: str,
+    history: list[dict],
+    step: int,
+    provider: str = "anthropic",
+    model: str | None = None,
+) -> dict:
     history_text = ""
     if history:
-        last = history[-5:]  # only last 5 actions for context
+        last = history[-5:]
         history_text = "\n\nPrevious actions taken:\n" + "\n".join(
             f"  Step {i+1}: {json.dumps(a)}" for i, a in enumerate(last)
         )
 
-    user_content = [
-        {
-            "type": "image",
-            "source": {"type": "base64", "media_type": "image/png", "data": screenshot_b64},
-        },
-        {
-            "type": "text",
-            "text": f"Step {step}. Goal: {goal}{history_text}\n\nWhat is the single next action to take? Respond with JSON only.",
-        },
-    ]
+    prompt = f"Step {step}. Goal: {goal}{history_text}\n\nWhat is the single next action to take? Respond with JSON only."
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
+    raw = call_provider(
+        provider=provider,
         system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_content}],
+        prompt=prompt,
+        image_b64=screenshot_b64,
+        model=model,
     )
-
-    raw = response.content[0].text.strip()
 
     json_match = re.search(r"\{.*\}", raw, re.DOTALL)
     if json_match:

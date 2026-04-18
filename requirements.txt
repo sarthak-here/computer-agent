@@ -1,4 +1,15 @@
-anthropic>=0.94.0
+# Core
 mss>=10.0.0
 pyautogui>=0.9.54
 pillow>=10.0.0
+
+# Providers — install only what you need
+anthropic>=0.94.0          # Anthropic (Claude)
+openai>=1.0.0              # OpenAI, Azure OpenAI, Ollama, LM Studio, llama.cpp, DeepSeek
+google-generativeai>=0.8.0 # Google Gemini
+groq>=0.9.0                # Groq
+mistralai>=1.0.0           # Mistral AI
+together>=1.2.0            # Together AI
+cohere>=5.0.0              # Cohere (text-only)
+
+# Local models (Ollama, LM Studio, llama.cpp) use the openai package — no extra install needed

@@ -14,7 +14,7 @@ A fully autonomous **Computer-Using Agent** that can take any high-level goal li
 
 No hardcoded scripts. No browser automation APIs. Just vision + reasoning + control.
 
-This is the same class of technology being built by OpenAI (Operator), Anthropic (Claude computer use), and Google DeepMind — except this runs locally, is open, and you control it.
+This is the same class of technology being built by OpenAI (Operator), Anthropic (Claude computer use), and Google DeepMind — except this is open, runs with any LLM, and you control it.
 
 ### Full Vision (Roadmap)
 
@@ -25,17 +25,19 @@ Screen → Vision Model → Reasoning → Action → Feedback → Repeat
 | Phase | Feature | Status |
 |-------|---------|--------|
 | 1 | Screen capture + base64 encoding | ✅ Done |
-| 2 | Claude vision understands screen content | ✅ Done |
+| 2 | Vision LLM understands screen content | ✅ Done |
 | 3 | JSON action planning (click, type, scroll, hotkey) | ✅ Done |
 | 4 | Action execution via pyautogui | ✅ Done |
 | 5 | Closed feedback loop (act → re-capture → re-plan) | ✅ Done |
 | 6 | Safety layer (dangerous action blocking + confirmation) | ✅ Done |
 | 7 | Session memory + action history logging | ✅ Done |
-| 8 | UI element detection (YOLO-based button finding) | 🔜 Planned |
-| 9 | Multi-step task memory across sessions | 🔜 Planned |
-| 10 | Web UI / dashboard to watch the agent live | 🔜 Planned |
-| 11 | Voice goal input ("Hey agent, do this...") | 🔜 Planned |
-| 12 | Full auto mode with rollback on failure | 🔜 Planned |
+| 8 | Multi-provider support (10 cloud APIs + local models) | ✅ Done |
+| 9 | Local model support (Ollama, LM Studio, llama.cpp) | ✅ Done |
+| 10 | UI element detection (YOLO-based button finding) | 🔜 Planned |
+| 11 | Multi-step task memory across sessions | 🔜 Planned |
+| 12 | Web UI / dashboard to watch the agent live | 🔜 Planned |
+| 13 | Voice goal input ("Hey agent, do this...") | 🔜 Planned |
+| 14 | Full auto mode with rollback on failure | 🔜 Planned |
 
 ---
 
@@ -44,19 +46,20 @@ Screen → Vision Model → Reasoning → Action → Feedback → Repeat
 ### Architecture
 
 ```
-main.py              ← orchestrates the loop
+main.py              ← orchestrates the loop + CLI flags
+providers.py         ← unified interface for all LLM providers
 screen_capture.py    ← grabs a screenshot, converts to base64
-planner.py           ← sends screenshot to Claude, gets next action as JSON
+planner.py           ← sends screenshot to chosen LLM, gets next action as JSON
 executor.py          ← executes click/type/key/scroll, safety checks
 memory.py            ← logs every step to a timestamped JSON session file
 ```
 
 ### How It Works
 
-1. You give the agent a goal in plain English
-2. Agent captures your screen
-3. Screenshot is sent to **Claude claude-sonnet-4-6** (vision model)
-4. Claude returns the single next action as JSON (e.g. `{"type": "click", "x": 540, "y": 300}`)
+1. You give the agent a goal in plain English and pick a provider
+2. Agent captures your screen as a PNG
+3. Screenshot + goal is sent to the vision LLM of your choice
+4. LLM returns the single next action as JSON (e.g. `{"type": "click", "x": 540, "y": 300}`)
 5. Action is executed on your computer
 6. Screen is captured again — loop continues until goal is done or max steps hit
 
@@ -69,49 +72,127 @@ memory.py            ← logs every step to a timestamped JSON session file
 
 ---
 
+## Supported Providers
+
+| Provider | Default Model | Vision | Env Key |
+|----------|--------------|--------|---------|
+| `anthropic` | claude-sonnet-4-6 | ✅ | `ANTHROPIC_API_KEY` |
+| `openai` | gpt-4o | ✅ | `OPENAI_API_KEY` |
+| `gemini` | gemini-1.5-pro | ✅ | `GEMINI_API_KEY` |
+| `groq` | llama-3.2-90b-vision-preview | ✅ | `GROQ_API_KEY` |
+| `mistral` | pixtral-12b-2409 | ✅ | `MISTRAL_API_KEY` |
+| `together` | Llama-3.2-90B-Vision-Instruct-Turbo | ✅ | `TOGETHER_API_KEY` |
+| `ollama` | llava | ✅ | none (local) |
+| `lmstudio` | local-model | ✅ | none (local) |
+| `llamacpp` | local-model | ✅ | none (local) |
+| `azure` | gpt-4o | ✅ | `AZURE_OPENAI_API_KEY` |
+| `deepseek` | deepseek-chat | ❌ text only | `DEEPSEEK_API_KEY` |
+| `cohere` | command-r-plus | ❌ text only | `COHERE_API_KEY` |
+
+Run `python main.py --list-providers` to see this table anytime.
+
+---
+
+## Local Models (No API Key Needed)
+
+Run the agent fully offline using locally downloaded models like **Llama 3**, **Gemma**, **Mistral**, **LLaVA**, etc.
+
+### Option 1 — Ollama (easiest)
+
+```bash
+# Install Ollama from https://ollama.com
+ollama pull llava                  # vision model (sees the screen)
+ollama pull llama3.2-vision        # newer, better vision
+ollama pull gemma3                 # Gemma 3 (Google)
+ollama pull mistral                # Mistral 7B
+```
+
+```bash
+python main.py --goal "open notepad" --provider ollama --model llava
+python main.py --goal "open notepad" --provider ollama --model llama3.2-vision
+python main.py --goal "open notepad" --provider ollama --model gemma3
+```
+
+### Option 2 — LM Studio (GUI, easiest for Windows)
+
+1. Download [LM Studio](https://lmstudio.ai)
+2. Search and download any model (LLaVA, Gemma, Mistral, Llama...)
+3. Go to **Local Server** tab → Start server
+4. Run:
+
+```bash
+python main.py --goal "open notepad" --provider lmstudio --model your-model-name
+```
+
+### Option 3 — llama.cpp server
+
+```bash
+# Start server with a vision model
+./server -m llava-v1.6.gguf --mmproj mmproj-llava.gguf -ngl 99 --port 8080
+
+python main.py --goal "open notepad" --provider llamacpp
+```
+
+---
+
 ## Setup
 
 ```bash
 git clone https://github.com/sarthak-here/computer-agent
 cd computer-agent
 
+# Install all dependencies (or just the ones for your provider)
 pip install -r requirements.txt
 ```
 
-Set your Anthropic API key:
+Set your API key for whichever provider you use:
 
 ```bash
 # Windows
 set ANTHROPIC_API_KEY=sk-ant-...
+set OPENAI_API_KEY=sk-...
+set GEMINI_API_KEY=AI...
+set GROQ_API_KEY=gsk_...
+set MISTRAL_API_KEY=...
 
 # Mac/Linux
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+Local providers (Ollama, LM Studio, llama.cpp) need no API key — just start the local server.
 
 ---
 
 ## Usage
 
 ```bash
-# Interactive — it will ask you for a goal
+# Interactive — picks provider, asks for goal
 python main.py
 
-# Direct goal
+# With a specific provider
 python main.py --goal "open Notepad and write Hello World"
+python main.py --goal "..." --provider openai
+python main.py --goal "..." --provider gemini --model gemini-1.5-flash
+python main.py --goal "..." --provider groq
+python main.py --goal "..." --provider ollama --model llava
+python main.py --goal "..." --provider lmstudio --model your-model
+
+# See all providers
+python main.py --list-providers
 
 # Auto mode — no confirmation per step (be careful)
-python main.py --goal "search for Python tutorials on Chrome" --auto
+python main.py --goal "..." --auto
 
-# Limit max steps
+# Limit steps
 python main.py --goal "..." --max-steps 10
 ```
 
 ### Example Goals That Work
 
 - `"Open Notepad and type a grocery list"`
-- `"Take a screenshot and save it to the Desktop"`
-- `"Open Chrome and go to github.com"`
+- `"Open Chrome and search for latest AI news"`
 - `"Open the calculator and compute 1234 * 5678"`
+- `"Go to github.com and search for computer vision repos"`
 
 ---
 
@@ -119,8 +200,9 @@ python main.py --goal "..." --max-steps 10
 
 ```
 🎯 Goal: Open Notepad and type Hello World
+🤖 Provider: Anthropic  |  Model: claude-sonnet-4-6
 🔒 Mode: SUPERVISED (confirm each step)
-──────────────────────────────────────────
+───────────────────────────────────────────────────────
 
 [Step 1/15] Capturing screen...
 🧠 Thinking...
@@ -142,14 +224,18 @@ Execute? [Y/n/s]: y
 ## Requirements
 
 - Python 3.10+
-- Anthropic API key (Claude claude-sonnet-4-6 with vision)
 - Windows / Mac / Linux with a display
+- One of: an API key for a cloud provider, OR a local model running via Ollama/LM Studio/llama.cpp
 
 ```
-anthropic>=0.94.0
-mss>=10.0.0
-pyautogui>=0.9.54
-pillow>=10.0.0
+mss, pyautogui, pillow     # always required
+anthropic                  # for Anthropic
+openai                     # for OpenAI, Azure, Ollama, LM Studio, llama.cpp, DeepSeek
+google-generativeai        # for Gemini
+groq                       # for Groq
+mistralai                  # for Mistral
+together                   # for Together AI
+cohere                     # for Cohere
 ```
 
 ---
@@ -158,7 +244,7 @@ pillow>=10.0.0
 
 Most automation tools (Selenium, Playwright, AutoHotkey) require you to know the app's internal structure — DOM elements, window handles, API hooks.
 
-This agent works like a human — it **just looks at the screen** and figures it out. That means it works on any app, any website, any window, without any integration.
+This agent works like a human — it **just looks at the screen** and figures it out. That means it works on **any app, any website, any window**, without any integration. And now it works with **any LLM** — cloud or fully local.
 
 ---
 
@@ -168,7 +254,7 @@ PRs welcome. Especially interested in:
 - UI element detection to improve click accuracy
 - Voice input for goal setting
 - A web dashboard to watch the agent live
-- Reliability improvements and error recovery
+- Support for more local model backends
 
 ---
 
