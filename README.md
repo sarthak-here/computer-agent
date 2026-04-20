@@ -1,6 +1,6 @@
 # Computer-Using Agent (CUA)
 
-> An AI that sees your screen and controls your computer — autonomously.
+> An AI that sees your screen and controls your computer — autonomously
 
 ---
 
