@@ -13,3 +13,20 @@ together>=1.2.0            # Together AI
 cohere>=5.0.0              # Cohere (text-only)
 
 # Local models (Ollama, LM Studio, llama.cpp) use the openai package — no extra install needed
+
+# Phase 10 — UI element detection
+opencv-python>=4.8.0       # OpenCV for contour-based detection (always available)
+# ultralytics>=8.0.0       # Optional: YOLO model (needs models/yolo_ui.pt)
+
+# Phase 12 — Live web dashboard
+flask>=3.0.0
+flask-socketio>=5.3.0
+
+# Phase 13 — Voice input
+SpeechRecognition>=3.10.0  # Google STT + Whisper backend
+pyaudio>=0.2.13            # Microphone access (Windows: pip install pipwin && pipwin install pyaudio)
+# openai-whisper>=20231117 # Optional: local Whisper for offline transcription
+
+# Phase 14 — Rollback on failure
+pyperclip>=1.8.2           # Clipboard save/restore
+pygetwindow>=0.0.9         # Active window tracking (Windows/Mac)

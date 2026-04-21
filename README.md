@@ -33,11 +33,11 @@ Screen → Vision Model → Reasoning → Action → Feedback → Repeat
 | 7 | Session memory + action history logging | ✅ Done |
 | 8 | Multi-provider support (10 cloud APIs + local models) | ✅ Done |
 | 9 | Local model support (Ollama, LM Studio, llama.cpp) | ✅ Done |
-| 10 | UI element detection (YOLO-based button finding) | 🔜 Planned |
-| 11 | Multi-step task memory across sessions | 🔜 Planned |
-| 12 | Web UI / dashboard to watch the agent live | 🔜 Planned |
-| 13 | Voice goal input ("Hey agent, do this...") | 🔜 Planned |
-| 14 | Full auto mode with rollback on failure | 🔜 Planned |
+| 10 | UI element detection (OpenCV + optional YOLO) | ✅ Done |
+| 11 | Multi-step task memory across sessions | ✅ Done |
+| 12 | Web UI / dashboard to watch the agent live | ✅ Done |
+| 13 | Voice goal input ("Hey agent, do this...") | ✅ Done |
+| 14 | Full auto mode with rollback on failure | ✅ Done |
 
 ---
 
@@ -46,12 +46,17 @@ Screen → Vision Model → Reasoning → Action → Feedback → Repeat
 ### Architecture
 
 ```
-main.py              ← orchestrates the loop + CLI flags
+main.py              ← orchestrates the loop + all CLI flags
 providers.py         ← unified interface for all LLM providers
 screen_capture.py    ← grabs a screenshot, converts to base64
 planner.py           ← sends screenshot to chosen LLM, gets next action as JSON
 executor.py          ← executes click/type/key/scroll, safety checks
 memory.py            ← logs every step to a timestamped JSON session file
+task_memory.py       ← cross-session memory: past goals, patterns, app notes  [Phase 11]
+detector.py          ← OpenCV + optional YOLO UI element detection             [Phase 10]
+dashboard.py         ← Flask/SocketIO real-time web dashboard                  [Phase 12]
+voice.py             ← microphone goal input via Whisper / Google STT          [Phase 13]
+rollback.py          ← state checkpoints + Ctrl+Z rollback on failure          [Phase 14]
 ```
 
 ### How It Works
@@ -232,6 +237,73 @@ python main.py --goal "..." --auto
 
 # Limit steps
 python main.py --goal "..." --max-steps 10
+
+# Phase 10 — UI element detection (OpenCV finds buttons/inputs, passes coords to LLM)
+python main.py --goal "..." --detect
+
+# Phase 12 — Live web dashboard at http://127.0.0.1:7860
+python main.py --goal "..." --dashboard
+
+# Phase 13 — Voice goal input (speak instead of type)
+python main.py --voice
+
+# Phase 14 — Auto-rollback on failure (Ctrl+Z chain + clipboard restore)
+python main.py --goal "..." --rollback
+
+# Combine flags
+python main.py --voice --detect --dashboard --rollback --auto
+```
+
+---
+
+## New Features (Phases 10–14)
+
+### Phase 10 — UI Element Detection (`--detect`)
+
+Runs OpenCV edge/contour detection on every screenshot to find interactive elements (buttons, inputs, toolbars). Detected coordinates are injected into the LLM prompt so it can click more accurately. Optionally drops in a YOLO model (`models/yolo_ui.pt`) for higher accuracy — no YOLO model is required, OpenCV is the default.
+
+```bash
+python main.py --goal "click the Submit button" --detect
+```
+
+### Phase 11 — Cross-Session Task Memory (automatic)
+
+`task_memory.json` is written after every session. Future sessions for similar goals automatically receive:
+- A list of past attempts and their outcomes
+- Per-app notes you can add manually
+- The key action sequence from the best matching past success
+
+No extra flag needed — memory loads automatically at startup.
+
+### Phase 12 — Live Web Dashboard (`--dashboard`)
+
+Opens `http://127.0.0.1:7860` in your browser. Shows:
+- Live compressed screenshots updated every step
+- Real-time action log (step type, reasoning, blocked/done events)
+- Session metadata (provider, model, step counter)
+
+```bash
+python main.py --goal "open gmail and draft an email" --dashboard
+```
+
+### Phase 13 — Voice Goal Input (`--voice`)
+
+Press ENTER to activate the microphone, then speak your goal. Uses Whisper (offline, more accurate) if available, falls back to Google STT.
+
+```bash
+python main.py --voice
+# then press ENTER and speak: "Open Chrome and search for cat videos"
+```
+
+Install deps: `pip install SpeechRecognition pyaudio`
+For offline Whisper: `pip install openai-whisper`
+
+### Phase 14 — Rollback on Failure (`--rollback`)
+
+Before each state-modifying action (type, hotkey, press), the agent snapshots clipboard contents and the active window title. If the planner errors or the action fails, it fires a `Ctrl+Z` chain (up to 5 undos) and restores the clipboard. The rollback log is printed in the session summary.
+
+```bash
+python main.py --goal "edit the document" --rollback
 ```
 
 ### Example Goals That Work
@@ -275,14 +347,31 @@ Execute? [Y/n/s]: y
 - One of: an API key for a cloud provider, OR a local model running via Ollama/LM Studio/llama.cpp
 
 ```
-mss, pyautogui, pillow     # always required
-anthropic                  # for Anthropic
-openai                     # for OpenAI, Azure, Ollama, LM Studio, llama.cpp, DeepSeek
-google-generativeai        # for Gemini
-groq                       # for Groq
-mistralai                  # for Mistral
-together                   # for Together AI
-cohere                     # for Cohere
+# Core (always required)
+mss, pyautogui, pillow
+
+# Providers (install only what you use)
+anthropic                  # Anthropic Claude
+openai                     # OpenAI, Azure, Ollama, LM Studio, llama.cpp, DeepSeek
+google-generativeai        # Google Gemini
+groq                       # Groq
+mistralai                  # Mistral AI
+together                   # Together AI
+cohere                     # Cohere
+
+# Phase 10 — UI detection
+opencv-python              # always available, no model needed
+ultralytics                # optional: YOLO (needs models/yolo_ui.pt)
+
+# Phase 12 — Dashboard
+flask, flask-socketio
+
+# Phase 13 — Voice input
+SpeechRecognition, pyaudio
+openai-whisper             # optional: offline transcription
+
+# Phase 14 — Rollback
+pyperclip, pygetwindow
 ```
 
 ---

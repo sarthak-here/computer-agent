@@ -22,6 +22,7 @@ Rules:
 - If the goal is already complete, return done
 - x and y are pixel coordinates on screen
 - Be precise with coordinates — look carefully at the screenshot
+- If detected UI elements are provided, prefer those coordinates for clicking
 - If unsure, use a conservative action or wait"""
 
 
@@ -33,6 +34,8 @@ def get_next_action(
     provider: str = "anthropic",
     model: str | None = None,
     logger: Logger | None = None,
+    detected_elements: list[dict] | None = None,
+    task_memory_context: str = "",
 ) -> dict:
     history_text = ""
     if history:
@@ -41,7 +44,22 @@ def get_next_action(
             f"  Step {i+1}: {json.dumps(a)}" for i, a in enumerate(last)
         )
 
-    prompt = f"Step {step}. Goal: {goal}{history_text}\n\nWhat is the single next action to take? Respond with JSON only."
+    # Phase 10: inject detected UI element coordinates
+    detection_text = ""
+    if detected_elements:
+        from detector import elements_to_context
+        detection_text = elements_to_context(detected_elements)
+
+    # Phase 11: inject cross-session task memory
+    memory_text = f"\n\n{task_memory_context}" if task_memory_context else ""
+
+    prompt = (
+        f"Step {step}. Goal: {goal}"
+        f"{history_text}"
+        f"{detection_text}"
+        f"{memory_text}"
+        f"\n\nWhat is the single next action to take? Respond with JSON only."
+    )
 
     effective_model = model or ""
     if logger:
