@@ -1,5 +1,10 @@
 # Computer-Using Agent (CUA)
 
+> **[System Design](./systemdesign.md)** - Architecture, data flow, and how it works end-to-end
+
+---
+
+
 > An AI that sees your screen and controls your computer — autonomously.
 
 ---
