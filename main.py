@@ -10,6 +10,7 @@ Usage:
     python main.py --goal "..." --provider gemini --model gemini-1.5-flash
     python main.py --list-providers
     python main.py --auto --max-steps 20
+    python main.py --goal "open notepad" --dry-run
     python main.py --goal "..." --dashboard             # Phase 12: live web dashboard
     python main.py --voice                              # Phase 13: speak your goal
     python main.py --goal "..." --detect                # Phase 10: UI element detection
@@ -37,6 +38,7 @@ def run_agent(
     use_dashboard: bool = False,
     use_detect: bool = False,
     use_rollback: bool = False,
+    dry_run: bool = False,
 ):
     info = PROVIDERS[provider]
     effective_model = model or info["default_model"]
@@ -75,7 +77,10 @@ def run_agent(
     print(f"🤖 Provider: {info['name']}  |  Model: {effective_model}")
     if not info["vision"]:
         print(f"⚠️  Note: {info.get('note', 'No vision — using text-only mode')}")
-    print(f"🔒 Mode: {'AUTO (no confirmation)' if auto_approve else 'SUPERVISED (confirm each step)'}")
+    if dry_run:
+        print(f"🔒 Mode: DRY RUN (actions will be shown but NOT executed)")
+    else:
+        print(f"🔒 Mode: {'AUTO (no confirmation)' if auto_approve else 'SUPERVISED (confirm each step)'}")
     print(f"🔢 Max steps: {max_steps}")
     if use_detect:
         print("🔍 UI detection: ON")
@@ -84,15 +89,16 @@ def run_agent(
     if use_dashboard:
         print("📊 Dashboard: ON")
     print("─" * 55)
-    print("⚠️  Move mouse to TOP-LEFT corner to emergency stop.")
-    print("─" * 55)
+    if not dry_run:
+        print("⚠️  Move mouse to TOP-LEFT corner to emergency stop.")
+        print("─" * 55)
 
     # Phase 11: fetch cross-session context once at start
     task_ctx = mem.get_task_context()
     if task_ctx:
         print(f"\n📚 Cross-session context loaded:\n{task_ctx}\n")
 
-    if not auto_approve:
+    if not auto_approve and not dry_run:
         input("\nPress ENTER when ready to start...")
 
     time.sleep(2)
@@ -159,7 +165,7 @@ def run_agent(
         if rollback_mgr and rollback_mgr.should_checkpoint(action):
             rollback_mgr.checkpoint(step, action, img)
 
-        should_continue = execute_action(action, auto_approve=auto_approve, logger=log)
+        should_continue = execute_action(action, auto_approve=auto_approve, logger=log, dry_run=dry_run)
         mem.add(action)
 
         if not should_continue:
@@ -192,6 +198,7 @@ Examples:
   python main.py --goal "..." --provider ollama --model llava
   python main.py --goal "..." --provider gemini --model gemini-1.5-flash
   python main.py --goal "..." --provider groq
+  python main.py --goal "open notepad" --dry-run
   python main.py --list-providers
   python main.py --voice                        # speak your goal
   python main.py --goal "..." --dashboard       # live web dashboard
@@ -211,6 +218,8 @@ Examples:
                         help="No confirmation per step (be careful)")
     parser.add_argument("--max-steps", type=int, default=15,
                         help="Max actions before stopping")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Preview planned actions without executing them")
     parser.add_argument("--list-providers", action="store_true",
                         help="Show all supported providers and exit")
     # Phase 10
@@ -266,6 +275,7 @@ Examples:
         use_dashboard=args.dashboard,
         use_detect=args.detect,
         use_rollback=args.rollback,
+        dry_run=args.dry_run,
     )
 
 

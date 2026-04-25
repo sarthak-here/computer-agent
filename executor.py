@@ -40,9 +40,15 @@ def is_dangerous(action_desc: str) -> bool:
     return any(kw in action_desc.lower() for kw in SAFE_GUARD_KEYWORDS)
 
 
-def execute_action(action: dict, auto_approve: bool = False, logger=None) -> bool:
+def execute_action(action: dict, auto_approve: bool = False, logger=None, dry_run: bool = False) -> bool:
     atype = action.get("type", "")
     desc = action.get("reasoning", "")
+
+    if dry_run:
+        print(f"\n[DRY RUN] Would execute: {action}")
+        if logger:
+            logger.blocked(action, "dry run — not executed")
+        return atype != "done"
 
     if is_dangerous(desc) or is_dangerous(str(action)):
         print(f"\n⚠️  DANGEROUS ACTION DETECTED: {action}")
