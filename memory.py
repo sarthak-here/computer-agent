@@ -25,6 +25,7 @@ class Memory:
             "goal": self.goal,
             "start_time": self.start_time,
             "end_time": datetime.now().isoformat(),
+            "status": status,
             "steps": len(self.history),
             "history": self.history,
         }

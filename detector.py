@@ -19,7 +19,7 @@ def detect_ui_elements(img: Image.Image) -> list[dict]:
         pass
     try:
         return _detect_opencv(img)
-    except ImportError:
+    except Exception:
         return []
 
 
@@ -56,6 +56,9 @@ def _detect_opencv(img: Image.Image) -> list[dict]:
     return elements[:30]
 
 
+_yolo_model_cache: dict = {}
+
+
 def _detect_yolo(img: Image.Image) -> list[dict]:
     import os
     from ultralytics import YOLO
@@ -64,7 +67,9 @@ def _detect_yolo(img: Image.Image) -> list[dict]:
     if not os.path.exists(model_path):
         raise FileNotFoundError("YOLO UI model not found at models/yolo_ui.pt")
 
-    model = YOLO(model_path)
+    if model_path not in _yolo_model_cache:
+        _yolo_model_cache[model_path] = YOLO(model_path)
+    model = _yolo_model_cache[model_path]
     results = model(img, verbose=False)
     elements = []
     for r in results:

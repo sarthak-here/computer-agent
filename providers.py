@@ -49,7 +49,7 @@ PROVIDERS: dict[str, dict] = {
     },
     "groq": {
         "name": "Groq",
-        "default_model": "llama-3.2-90b-vision-preview",
+        "default_model": "meta-llama/llama-4-scout-17b-16e-instruct",
         "vision": True,
         "env_key": "GROQ_API_KEY",
         "install": "groq",
@@ -267,12 +267,22 @@ def _call_azure(model: str, system: str, prompt: str, image_b64: str | None) -> 
 
 def _call_cohere(model: str, system: str, prompt: str, image_b64: str | None) -> str:
     import cohere
-    client = cohere.Client(os.environ["COHERE_API_KEY"])
     full_prompt = f"{system}\n\n{prompt}"
     if image_b64:
         full_prompt += "\n\n[Note: Vision not available. Describe your best guess based on context.]"
-    resp = client.chat(model=model, message=full_prompt)
-    return resp.text.strip()
+    try:
+        # cohere v5+ (ClientV2)
+        client = cohere.ClientV2(os.environ["COHERE_API_KEY"])
+        resp = client.chat(
+            model=model,
+            messages=[{"role": "user", "content": full_prompt}],
+        )
+        return resp.message.content[0].text.strip()
+    except AttributeError:
+        # cohere v4 fallback
+        client = cohere.Client(os.environ["COHERE_API_KEY"])
+        resp = client.chat(model=model, message=full_prompt)
+        return resp.text.strip()
 
 
 # ---------------------------------------------------------------------------

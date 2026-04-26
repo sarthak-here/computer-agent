@@ -40,8 +40,9 @@ def get_next_action(
     history_text = ""
     if history:
         last = history[-5:]
+        offset = len(history) - len(last)
         history_text = "\n\nPrevious actions taken:\n" + "\n".join(
-            f"  Step {i+1}: {json.dumps(a)}" for i, a in enumerate(last)
+            f"  Step {offset + i + 1}: {json.dumps(a)}" for i, a in enumerate(last)
         )
 
     # Phase 10: inject detected UI element coordinates

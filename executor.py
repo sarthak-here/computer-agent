@@ -14,7 +14,14 @@ def click(x: int, y: int, button: str = "left", double: bool = False):
 
 
 def type_text(text: str, interval: float = 0.05):
-    pyautogui.typewrite(text, interval=interval)
+    # pyautogui.typewrite silently drops non-ASCII; use clipboard paste for Unicode
+    try:
+        import pyperclip
+        pyperclip.copy(text)
+        pyautogui.hotkey("ctrl", "v")
+        time.sleep(0.1)
+    except Exception:
+        pyautogui.typewrite(text, interval=interval)
 
 
 def press_key(key: str):

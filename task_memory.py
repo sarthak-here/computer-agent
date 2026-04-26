@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 
 
-TASK_MEMORY_FILE = Path("task_memory.json")
+TASK_MEMORY_FILE = Path(__file__).parent / "task_memory.json"
 
 _APP_KEYWORDS = {
     "notepad": "notepad", "chrome": "chrome", "firefox": "firefox",

@@ -73,12 +73,10 @@ class RollbackManager:
     def should_checkpoint(self, action: dict) -> bool:
         """Returns True if this action type warrants a pre-execution checkpoint."""
         atype = action.get("type", "")
-        if atype in self.RISKY_TYPES:
-            return True
         if atype == "hotkey":
             keys = [k.lower() for k in action.get("keys", [])]
             return any(k in {"delete", "backspace", "d", "x", "z"} for k in keys)
-        return False
+        return atype in self.RISKY_TYPES
 
     def summary(self) -> str:
         if not self.rollback_log:
