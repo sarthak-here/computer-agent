@@ -261,6 +261,12 @@ Examples:
         if not goal:
             print("No goal provided. Exiting.")
             sys.exit(1)
+        provider_input = input(f"Provider [{args.provider}]: ").strip()
+        if provider_input:
+            args.provider = provider_input
+        model_input = input(f"Model [default for {args.provider}]: ").strip()
+        if model_input:
+            args.model = model_input
 
     if args.provider not in PROVIDERS:
         print(f"Unknown provider '{args.provider}'. Run --list-providers to see options.")
